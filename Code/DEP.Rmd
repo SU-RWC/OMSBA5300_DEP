@@ -28,6 +28,9 @@ library(ggpubr)
 ## Load data
 
 ```{r}
+# Set default working directory
+setwd("/Users/cray/Desktop/OMSBA5300/DEP/OMSBA5300_DEP")
+
 # Set file directory for data
 dep_dir <- 'Data'
 dep_files <- list.files(path = dep_dir, pattern = '*.csv', full.names=TRUE)
@@ -171,6 +174,7 @@ weekly_trend2 %>%
   ggplot(aes(x = begin_date, y = avg_index, shape = w_scorecard, color = w_scorecard)) +
   xlab('Date') +
   ylab('Standardized Index') +
+  ylim(-1.5, 1.5) +
   geom_point() +
   geom_vline(xintercept = as.Date('2015-09-01'), color = 'dark grey', linetype = 'longdash') +
   geom_text(aes(x = as.Date('2015-09-15'), label = 'Scorecard Started Publishing', y = -0.75), color = 'blue', angle = 90, size = 2.5) +
@@ -186,6 +190,7 @@ weekly_trend2 %>%
   ggplot(aes(x = begin_date, y = avg_index, shape = w_scorecard, color = w_scorecard)) +
   xlab('Date') +
   ylab('Standardized Index') +
+  ylim(-1.5, 1.5) +
   geom_point() +
   geom_vline(xintercept = as.Date('2015-09-01'), color = 'dark grey', linetype = 'longdash') +
   geom_text(aes(x = as.Date('2015-09-15'), label = 'Scorecard Started Publishing', y = -0.75), color = 'blue', angle = 90, size = 2.5) +
