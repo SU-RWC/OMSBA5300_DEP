@@ -24,6 +24,7 @@ library(ggplot2)
 library(ggpubr)
 ```
 
+
 ## Load data
 
 ```{r}
@@ -42,6 +43,7 @@ id_name_link <- read_csv(file = 'Data/id_name_link.csv')
 scorecard <- read_csv(file = 'Data/Most+Recent+Cohorts+(Scorecard+Elements).csv')
 
 ```
+
 
 ## Clean up data
 
@@ -117,6 +119,7 @@ weekly_trend2 <- weekly_trend %>%
 # Final dataframe for exploration and regression
 vtable(weekly_trend2)
 ```
+
 Looking at the scatter plots, initially it made me thinking that the regression model would be polynomial, given the look of a wave form. However, after further investigation, there is actually a pattern to follow, in which certain time periods (School Research Seasons, typically being January to March, July to September), we see an upward linear trend for standardized index, and a downward linear trend for standardized index during other months. This actually leads me to defining a "research_season" binary variable for regression later on.
 
 I have also observed a difference in time internals before and after the scorecard is made available. Therefore, I decided to subset the original data to make sure that I have equal time intervals before and after for further exploration. I have also made sure that each time intervals would cover both in and out of research season as well in order to observe its effects.
@@ -206,7 +209,7 @@ The decision of staying with a linear regression model, instead of using a polyn
 
 ```{r}
 # Build regression model
-m <- lm(index_std ~ w_scorecard*earning_lvl + research_season, data = weekly_trend2)
+m <- lm(index_std ~ w_scorecard + earning_lvl + research_season + w_scorecard*earning_lvl, data = weekly_trend2)
 
 # View coefficients
 export_summs(m)
@@ -214,14 +217,30 @@ export_summs(m)
 linearHypothesis(m, matchCoefs(m, c('w_scorecard', 'earning_lvl', 'research_season')))
 ```
 
+Interpretation:
+
+* Assuming everything else held constant, while the scorecard is published, being a school with low reported earnings is associated to a 0.02 lower standardized index than being a school with high reported earnings.
+* Assuming everything else held constant, being inside the school research season is associated to a 0.20 higher standardized index than being outside of the school research season.
+* With a p-value much smaller than the 5% significance level, we would reject the null that the variables having no causal effects on the standardized index, as it's statistically significant.
+
+
 ### Fixed Effect Model
+
+Here we are looking at the fixed effect of "state" variable on the model, as it would have a causal effect on both levels of reported earning AND the standardized index.
 
 ```{r}
 # Use fixed effect model to determine the effect of scorecard on school
-fe <- lm(index_std ~ w_scorecard*earning_lvl + research_season + factor(state), data = weekly_trend2)
+fe <- lm(index_std ~ w_scorecard + earning_lvl + research_season + w_scorecard*earning_lvl + factor(state), data = weekly_trend2)
 
 export_summs(fe)
 
 linearHypothesis(fe, matchCoefs(fe, 'state'))
 ```
+Interpretation:
 
+* As the p-value being much smaller than the 5% significance level, we can reject the null that the dummy coefficients of different states are all jointly zero, as they're statistically significant.
+
+
+## Conclusion
+
+Among colleges that predominantly grant bachelor’s degrees, our data is implying that schools with high reported earnings have benefited from the release of the College Scorecard and observed marginally higher interests relative to the ones with low reported earnings.

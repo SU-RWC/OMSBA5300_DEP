@@ -633,7 +633,7 @@ ncol = 2, nrow =1
 <div id="multivariate-linear-regression-model" class="section level3">
 <h3>Multivariate Linear Regression Model</h3>
 <pre class="r"><code># Build regression model
-m &lt;- lm(index_std ~ w_scorecard*earning_lvl + research_season, data = weekly_trend2)
+m &lt;- lm(index_std ~ w_scorecard + earning_lvl + research_season + w_scorecard*earning_lvl, data = weekly_trend2)
 
 # View coefficients
 export_summs(m)</code></pre>
@@ -676,18 +676,26 @@ export_summs(m)</code></pre>
 ## w_scorecardYES:earning_lvlLOW = 0
 ## 
 ## Model 1: restricted model
-## Model 2: index_std ~ w_scorecard * earning_lvl + research_season
+## Model 2: index_std ~ w_scorecard + earning_lvl + research_season + w_scorecard * 
+##     earning_lvl
 ## 
 ##   Res.Df   RSS Df Sum of Sq      F    Pr(&gt;F)    
 ## 1 107505 52292                                  
 ## 2 107503 52211  2    80.998 83.387 &lt; 2.2e-16 ***
 ## ---
 ## Signif. codes:  0 &#39;***&#39; 0.001 &#39;**&#39; 0.01 &#39;*&#39; 0.05 &#39;.&#39; 0.1 &#39; &#39; 1</code></pre>
+<p>Interpretation:</p>
+<ul>
+<li>Assuming everything else held constant, while the scorecard is published, being a school with low reported earnings is associated to a 0.02 lower standardized index than being a school with high reported earnings.</li>
+<li>Assuming everything else held constant, being inside the school research season is associated to a 0.20 higher standardized index than being outside of the school research season.</li>
+<li>With a p-value much smaller than the 5% significance level, we would reject the null that the variables having no causal effects on the standardized index, as it’s statistically significant.</li>
+</ul>
 </div>
 <div id="fixed-effect-model" class="section level3">
 <h3>Fixed Effect Model</h3>
+<p>Here we are looking at the fixed effect of “state” variable on the model, as it would have a causal effect on both levels of reported earning AND the standardized index.</p>
 <pre class="r"><code># Use fixed effect model to determine the effect of scorecard on school
-fe &lt;- lm(index_std ~ w_scorecard*earning_lvl + research_season + factor(state), data = weekly_trend2)
+fe &lt;- lm(index_std ~ w_scorecard + earning_lvl + research_season + w_scorecard*earning_lvl + factor(state), data = weekly_trend2)
 
 export_summs(fe)</code></pre>
 <table class="huxtable" style="border-collapse: collapse; border: 0px; margin-bottom: 2em; margin-top: 2em; ; margin-left: auto; margin-right: auto;  " id="tab:unnamed-chunk-8">
@@ -992,14 +1000,23 @@ export_summs(fe)</code></pre>
 ## factor(state)WY = 0
 ## 
 ## Model 1: restricted model
-## Model 2: index_std ~ w_scorecard * earning_lvl + research_season + factor(state)
+## Model 2: index_std ~ w_scorecard + earning_lvl + research_season + w_scorecard * 
+##     earning_lvl + factor(state)
 ## 
 ##   Res.Df   RSS Df Sum of Sq      F    Pr(&gt;F)    
 ## 1 107503 52211                                  
 ## 2 107450 51846 53    365.36 14.287 &lt; 2.2e-16 ***
 ## ---
 ## Signif. codes:  0 &#39;***&#39; 0.001 &#39;**&#39; 0.01 &#39;*&#39; 0.05 &#39;.&#39; 0.1 &#39; &#39; 1</code></pre>
+<p>Interpretation:</p>
+<ul>
+<li>As the p-value being much smaller than the 5% significance level, we can reject the null that the dummy coefficients of different states are all jointly zero, as they’re statistically significant.</li>
+</ul>
 </div>
+</div>
+<div id="conclusion" class="section level2">
+<h2>Conclusion</h2>
+<p>Among colleges that predominantly grant bachelor’s degrees, our data is implying that schools with high reported earnings have benefited from the release of the College Scorecard and observed marginally higher interests relative to the ones with low reported earnings.</p>
 </div>
 
 
