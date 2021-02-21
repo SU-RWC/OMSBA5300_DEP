@@ -1,0 +1,227 @@
+---
+title: "OMSBA 5300 Data Exploration Project"
+author: "Raymond Chen"
+date: "2/16/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
+```
+
+## Libraries
+
+```{r}
+# Loading necessary libraries
+library(tidyverse)
+library(jtools)
+library(vtable)
+library(car)
+library(estimatr)
+library(lubridate)
+library(readr)
+library(ggplot2)
+library(ggpubr)
+```
+
+## Load data
+
+```{r}
+# Set file directory for data
+dep_dir <- 'Data'
+dep_files <- list.files(path = dep_dir, pattern = '*.csv', full.names=TRUE)
+
+# Combine trends csvs into a dataframe
+trends_dir <- 'Data/Trends'
+trends_df <- list.files(path=trends_dir, pattern="*.csv", full.names=TRUE) %>% 
+  lapply(read_csv) %>% 
+  bind_rows()
+
+# Turn other csvs into dataframe for processing later
+id_name_link <- read_csv(file = 'Data/id_name_link.csv')
+scorecard <- read_csv(file = 'Data/Most+Recent+Cohorts+(Scorecard+Elements).csv')
+
+```
+
+## Clean up data
+
+Assumptions:
+
+* Schools with the same school name are considered duplicated and removed from the dataframe
+* Schools with missing data (NAs) are removed from the dataframe
+* Indexes are standardized among the keywords
+* High/Low reported earning schools are divided by the median of "Median earnings of students working and not enrolled 10 years after entry"
+* Schools that do not report such earnings are removed from the dataframe
+
+```{r}
+# Check for schools with same names and remove them from dataframe
+dups <- data.frame(table(id_name_link$schname)) %>% 
+  rename(schname = Var1) %>% 
+  filter(Freq > 1)
+
+id_name_link <- id_name_link %>% 
+  anti_join(dups, by = 'schname')
+
+# Join schools id with trends and create a standardized index score
+trends_w_id <- trends_df %>%
+  left_join(id_name_link) %>% 
+  na.omit() %>% 
+  group_by(keyword) %>% 
+  mutate(index_std = (index - mean(index)) / sd(index))
+
+# Replace the '-' in the scorecard's variables with '_'
+names(scorecard) <- gsub(x = names(scorecard), pattern = '-', replacement = '_')
+
+# Filter out schools predominantly grant bachelor's degrees and capture the earnings
+ba_school_trends <- scorecard %>% 
+  filter(PREDDEG == 3) %>% 
+  select(UNITID, OPEID, STABBR, md_earn_wne_p10_REPORTED_EARNINGS) %>% 
+  rename(unitid = UNITID, opeid = OPEID, state = STABBR, earnings = md_earn_wne_p10_REPORTED_EARNINGS) %>% 
+  inner_join(trends_w_id, by = c('opeid', 'unitid'))
+
+# Convert earnings to numeric
+ba_school_trends$earnings <- as.numeric(ba_school_trends$earnings)
+
+# Define High/Low earning schools
+ba_school_trends <- ba_school_trends %>% 
+  na.omit() %>% 
+  mutate(earning_lvl = ifelse(earnings >= median(earnings), 'HIGH', 'LOW'))
+
+# View data before exploration
+vtable(ba_school_trends)
+```
+
+
+## Data Exploration
+
+```{r}
+# Build dataframe for exploration
+weekly_trend <- ba_school_trends %>% 
+  group_by(schname, monthorweek) %>% 
+  summarise(state = first(state), earning_lvl = first(earning_lvl), num_keyword = n_distinct(keyword), index_std = mean(index_std)) %>% 
+  separate(monthorweek, c('begin_date', 'end_date'), ' - ') %>% 
+  mutate(w_scorecard = ifelse(as.Date(begin_date) >= as.Date('2015-09-01'), 'YES', 'NO'), 
+         research_season = ifelse((month(as.Date(begin_date)) %in% c(1, 2, 3, 7, 8, 9)), 'YES', 'NO'))
+
+# Convert the dates to Date class
+weekly_trend$begin_date <- as.Date(weekly_trend$begin_date)
+weekly_trend$end_date <-  as.Date(weekly_trend$end_date)
+
+# Define time interval for exploration
+explore_interval <- max(weekly_trend$end_date) - as.Date('2015-09-01')
+
+# Subset the data according to the interval
+weekly_trend2 <- weekly_trend %>% 
+  filter(begin_date >= (as.Date('2015-09-01') - explore_interval) & begin_date <= (as.Date('2015-09-01') + explore_interval))
+
+# Final dataframe for exploration and regression
+vtable(weekly_trend2)
+```
+Looking at the scatter plots, initially it made me thinking that the regression model would be polynomial, given the look of a wave form. However, after further investigation, there is actually a pattern to follow, in which certain time periods (School Research Seasons, typically being January to March, July to September), we see an upward linear trend for standardized index, and a downward linear trend for standardized index during other months. This actually leads me to defining a "research_season" binary variable for regression later on.
+
+I have also observed a difference in time internals before and after the scorecard is made available. Therefore, I decided to subset the original data to make sure that I have equal time intervals before and after for further exploration. I have also made sure that each time intervals would cover both in and out of research season as well in order to observe its effects.
+
+```{r}
+# Compare scorecard's impact on standardized index between schools with high/low reported earnings
+ggarrange(
+  
+weekly_trend2 %>%
+  filter(w_scorecard == 'YES') %>% 
+  group_by(begin_date, earning_lvl) %>% 
+  summarise(avg_index = mean(index_std)) %>% 
+  ggplot(aes(x = begin_date, y = avg_index, shape = earning_lvl, color = earning_lvl)) +
+  xlab('Date') +
+  ylab('Standardized Index') +
+  geom_point() +
+  ylim(-1.5, 1.5) +
+  stat_smooth(method = 'lm', formula = y ~ poly(x, 4)) +
+  ggtitle('Standardized Index with Scorecard') +
+  theme(plot.title = element_text(size = 10, face = "bold")),
+
+weekly_trend2 %>%
+  filter(w_scorecard == 'NO') %>% 
+  group_by(begin_date, earning_lvl) %>% 
+  summarise(avg_index = mean(index_std)) %>% 
+  ggplot(aes(x = begin_date, y = avg_index, shape = earning_lvl, color = earning_lvl)) +
+  xlab('Date') +
+  ylab('Standardized Index') +
+  geom_point() +
+  ylim(-1.5, 1.5) +
+  stat_smooth(method = 'lm', formula = y ~ poly(x, 4)) +
+  ggtitle('Standardized Index without Scorecard') +
+  theme(plot.title = element_text(size = 10, face = "bold")),
+
+ncol = 2, nrow = 1
+)
+```
+
+Judging by these couple plots, the standardized indexes of schools with low reported earnings seem to be higher than the ones with high reported earnings. Again, we are seeing that effect of in/out of research season on the standardized indexes. It's a bit difficult to see the effect of the availability of scorecard based on these plots.
+
+```{r}
+# Compare school's reported earnings level's impact on standardized index before/after the scorecard is published
+ggarrange(
+  
+weekly_trend2 %>%
+  filter(earning_lvl == 'HIGH') %>% 
+  group_by(begin_date, w_scorecard) %>% 
+  summarise(avg_index = mean(index_std)) %>% 
+  ggplot(aes(x = begin_date, y = avg_index, shape = w_scorecard, color = w_scorecard)) +
+  xlab('Date') +
+  ylab('Standardized Index') +
+  geom_point() +
+  geom_vline(xintercept = as.Date('2015-09-01'), color = 'dark grey', linetype = 'longdash') +
+  geom_text(aes(x = as.Date('2015-09-15'), label = 'Scorecard Started Publishing', y = -0.75), color = 'blue', angle = 90, size = 2.5) +
+  theme(plot.title = element_text(size = 8, face = "bold"),
+        axis.text.x = element_text(angle = -45, hjust = 0, vjust = 0)) +
+  stat_smooth(method = 'lm', formula = y ~ poly(x, 4)) +
+  ggtitle('Standardized Index of High Earnings Reported Schools'),
+
+weekly_trend2 %>%
+  filter(earning_lvl == 'LOW') %>% 
+  group_by(begin_date, w_scorecard) %>% 
+  summarise(avg_index = mean(index_std)) %>% 
+  ggplot(aes(x = begin_date, y = avg_index, shape = w_scorecard, color = w_scorecard)) +
+  xlab('Date') +
+  ylab('Standardized Index') +
+  geom_point() +
+  geom_vline(xintercept = as.Date('2015-09-01'), color = 'dark grey', linetype = 'longdash') +
+  geom_text(aes(x = as.Date('2015-09-15'), label = 'Scorecard Started Publishing', y = -0.75), color = 'blue', angle = 90, size = 2.5) +
+  theme(plot.title = element_text(size = 8, face = "bold"),
+        axis.text.x = element_text(angle = -45, hjust = 0, vjust = 0)) +
+  stat_smooth(method = 'lm', formula = y ~ poly(x, 4)) +
+  ggtitle('Standardized Index of Low Earnings Reported Schools'),
+
+ncol = 2, nrow =1
+)
+```
+
+Lining up these two before and after plots actually gives us some idea of the effect of the availability of the scorecard on the standardized indexes, for schools with high and low reported earning. The variation of standardized indexes for either high or low reported earning schools seems to be lessen as a result of the availability of the scorecard, but the effect is more noticeable for the schools with high reported earnings.
+
+
+## Regression
+
+The decision of staying with a linear regression model, instead of using a polynomial model, is again due the observation that within (or outside) each school research season, the causal effect of the independent variables on the dependent variable is still linear.
+
+### Multivariate Linear Regression Model
+
+```{r}
+# Build regression model
+m <- lm(index_std ~ w_scorecard*earning_lvl + research_season, data = weekly_trend2)
+
+# View coefficients
+export_summs(m)
+
+linearHypothesis(m, matchCoefs(m, c('w_scorecard', 'earning_lvl', 'research_season')))
+```
+
+### Fixed Effect Model
+
+```{r}
+# Use fixed effect model to determine the effect of scorecard on school
+fe <- lm(index_std ~ w_scorecard*earning_lvl + research_season + factor(state), data = weekly_trend2)
+
+export_summs(fe)
+
+linearHypothesis(fe, matchCoefs(fe, 'state'))
+```
+
