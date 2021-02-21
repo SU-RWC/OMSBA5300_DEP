@@ -130,76 +130,76 @@ I have also observed a difference in time internals before and after the scoreca
 ```{r}
 # Compare scorecard's impact on standardized index between schools with high/low reported earnings
 ggarrange(
+
+  weekly_trend2 %>%
+    filter(w_scorecard == 'NO') %>% 
+    group_by(begin_date, earning_lvl) %>% 
+    summarise(avg_index = mean(index_std)) %>% 
+    ggplot(aes(x = begin_date, y = avg_index, shape = earning_lvl, color = earning_lvl)) +
+    xlab('Date') +
+    ylab('Standardized Index') +
+    geom_point() +
+    ylim(-1.5, 1.5) +
+    geom_smooth() +
+    ggtitle('Standardized Index without Scorecard') +
+    theme(plot.title = element_text(size = 10, face = "bold")),  
   
-weekly_trend2 %>%
-  filter(w_scorecard == 'YES') %>% 
-  group_by(begin_date, earning_lvl) %>% 
-  summarise(avg_index = mean(index_std)) %>% 
-  ggplot(aes(x = begin_date, y = avg_index, shape = earning_lvl, color = earning_lvl)) +
-  xlab('Date') +
-  ylab('Standardized Index') +
-  geom_point() +
-  ylim(-1.5, 1.5) +
-  stat_smooth(method = 'lm', formula = y ~ poly(x, 4)) +
-  ggtitle('Standardized Index with Scorecard') +
-  theme(plot.title = element_text(size = 10, face = "bold")),
-
-weekly_trend2 %>%
-  filter(w_scorecard == 'NO') %>% 
-  group_by(begin_date, earning_lvl) %>% 
-  summarise(avg_index = mean(index_std)) %>% 
-  ggplot(aes(x = begin_date, y = avg_index, shape = earning_lvl, color = earning_lvl)) +
-  xlab('Date') +
-  ylab('Standardized Index') +
-  geom_point() +
-  ylim(-1.5, 1.5) +
-  stat_smooth(method = 'lm', formula = y ~ poly(x, 4)) +
-  ggtitle('Standardized Index without Scorecard') +
-  theme(plot.title = element_text(size = 10, face = "bold")),
-
-ncol = 2, nrow = 1
+  weekly_trend2 %>%
+    filter(w_scorecard == 'YES') %>% 
+    group_by(begin_date, earning_lvl) %>% 
+    summarise(avg_index = mean(index_std)) %>% 
+    ggplot(aes(x = begin_date, y = avg_index, shape = earning_lvl, color = earning_lvl)) +
+    xlab('Date') +
+    ylab('Standardized Index') +
+    geom_point() +
+    ylim(-1.5, 1.5) +
+    geom_smooth() +
+    ggtitle('Standardized Index with Scorecard') +
+    theme(plot.title = element_text(size = 10, face = "bold")),
+  
+  ncol = 2, nrow = 1
 )
 ```
 
-Judging by these couple plots, the standardized indexes of schools with low reported earnings seem to be higher than the ones with high reported earnings. Again, we are seeing that effect of in/out of research season on the standardized indexes. It's a bit difficult to see the effect of the availability of scorecard based on these plots.
+Judging by these couple plots, the standardized indexes of schools with low reported earnings seem to be higher than the ones with high reported earnings. Again, we are seeing that effect of in/out of research season on the standardized indexes. It seems that the gap between the standardized indexes of the two categories has been decreasing post the publishing of the scorecard.
 
 ```{r}
 # Compare school's reported earnings level's impact on standardized index before/after the scorecard is published
 ggarrange(
   
-weekly_trend2 %>%
-  filter(earning_lvl == 'HIGH') %>% 
-  group_by(begin_date, w_scorecard) %>% 
-  summarise(avg_index = mean(index_std)) %>% 
-  ggplot(aes(x = begin_date, y = avg_index, shape = w_scorecard, color = w_scorecard)) +
-  xlab('Date') +
-  ylab('Standardized Index') +
-  ylim(-1.5, 1.5) +
-  geom_point() +
-  geom_vline(xintercept = as.Date('2015-09-01'), color = 'dark grey', linetype = 'longdash') +
-  geom_text(aes(x = as.Date('2015-09-15'), label = 'Scorecard Started Publishing', y = -0.75), color = 'blue', angle = 90, size = 2.5) +
-  theme(plot.title = element_text(size = 8, face = "bold"),
-        axis.text.x = element_text(angle = -45, hjust = 0, vjust = 0)) +
-  stat_smooth(method = 'lm', formula = y ~ poly(x, 4)) +
-  ggtitle('Standardized Index of High Earnings Reported Schools'),
-
-weekly_trend2 %>%
-  filter(earning_lvl == 'LOW') %>% 
-  group_by(begin_date, w_scorecard) %>% 
-  summarise(avg_index = mean(index_std)) %>% 
-  ggplot(aes(x = begin_date, y = avg_index, shape = w_scorecard, color = w_scorecard)) +
-  xlab('Date') +
-  ylab('Standardized Index') +
-  ylim(-1.5, 1.5) +
-  geom_point() +
-  geom_vline(xintercept = as.Date('2015-09-01'), color = 'dark grey', linetype = 'longdash') +
-  geom_text(aes(x = as.Date('2015-09-15'), label = 'Scorecard Started Publishing', y = -0.75), color = 'blue', angle = 90, size = 2.5) +
-  theme(plot.title = element_text(size = 8, face = "bold"),
-        axis.text.x = element_text(angle = -45, hjust = 0, vjust = 0)) +
-  stat_smooth(method = 'lm', formula = y ~ poly(x, 4)) +
-  ggtitle('Standardized Index of Low Earnings Reported Schools'),
-
-ncol = 2, nrow =1
+  weekly_trend2 %>%
+    filter(earning_lvl == 'HIGH') %>% 
+    group_by(begin_date, w_scorecard) %>% 
+    summarise(avg_index = mean(index_std)) %>% 
+    ggplot(aes(x = begin_date, y = avg_index, shape = w_scorecard, color = w_scorecard)) +
+    xlab('Date') +
+    ylab('Standardized Index') +
+    ylim(-1.5, 1.5) +
+    geom_point() +
+    geom_vline(xintercept = as.Date('2015-09-01'), color = 'dark grey', linetype = 'longdash') +
+    geom_text(aes(x = as.Date('2015-09-15'), label = 'Scorecard Started Publishing', y = -0.75), color = 'blue', angle = 90, size = 2.5) +
+    theme(plot.title = element_text(size = 8, face = "bold"),
+          axis.text.x = element_text(angle = -45, hjust = 0, vjust = 0)) +
+    geom_smooth() +
+    ggtitle('Standardized Index of High Earnings Reported Schools'),
+  
+  weekly_trend2 %>%
+    filter(earning_lvl == 'LOW') %>% 
+    group_by(begin_date, w_scorecard) %>% 
+    summarise(avg_index = mean(index_std)) %>% 
+    ggplot(aes(x = begin_date, y = avg_index, shape = w_scorecard, color = w_scorecard)) +
+    xlab('Date') +
+    ylab('Standardized Index') +
+    ylim(-1.5, 1.5) +
+    geom_point() +
+    geom_vline(xintercept = as.Date('2015-09-01'), color = 'dark grey', linetype = 'longdash') +
+    geom_text(aes(x = as.Date('2015-09-15'), label = 'Scorecard Started Publishing', y = -0.75), color = 'blue', angle = 90, size = 2.5) +
+    theme(plot.title = element_text(size = 8, face = "bold"),
+          axis.text.x = element_text(angle = -45, hjust = 0, vjust = 0)) +
+    geom_smooth() +
+    ggtitle('Standardized Index of Low Earnings Reported Schools'),
+  
+  ncol = 2, nrow =1
 )
 ```
 
